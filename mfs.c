@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
+#include <sys/types.h>
 
 #define WHITESPACE " \t\n"      // We want to split our command line up into tokens
                                 // so we need to define what delimits our tokens.
@@ -56,6 +57,8 @@ int main()
     // is no input
     while( !fgets (cmd_str, MAX_COMMAND_SIZE, stdin) );
 
+    // cheecks for the empty input and restarts the while loop.
+   	if(strcmp(cmd_str,"\n")==0) continue;
     /* Parse input */
     char *token[MAX_NUM_ARGUMENTS];
 
@@ -87,14 +90,50 @@ int main()
     // Now print the tokenized input as a debug check
     // \TODO Remove this code and replace with your shell functionality
 
-    int token_index  = 0;
-    for( token_index = 0; token_index < token_count; token_index ++ ) 
-    {
-      printf("token[%d] = %s\n", token_index, token[token_index] );  
-    }
+    // int token_index  = 0;
+    // for( token_index = 0; token_index < token_count; token_index ++ ) 
+    // {
+    //   printf("token[%d] = %s\n", token_index, token[token_index] );  
+    // }
 
     free( working_root );
 
+    if(strcmp(token[0],"exit")==0 || strcmp(token[0],"quit")==0)
+    {
+    	fflush(NULL);
+    	return 0;
+    }
+
+    pid_t child_pid = fork();
+
+    int child_status;
+
+    if(child_pid ==0)
+    {
+    	child_status = execvp(token[0],token);
+    	if(child_status!=0)
+    {
+    	printf("%s: Command not found.\n\n",token[0]);
+    }
+    	exit(0);
+    }
+    waitpid(child_pid, &child_status,0);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   }
+
+
   return 0;
 }
