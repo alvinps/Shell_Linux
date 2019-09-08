@@ -44,9 +44,14 @@ int main()
 {
 
   char * cmd_str = (char*) malloc( MAX_COMMAND_SIZE );
+  int c_pids[100];
+  char history [100][MAX_COMMAND_SIZE];
+  int c_count = 0;
+  int p_count =0;
 
   while( 1 )
   {
+  	
     // Print out the msh prompt
     printf ("msh> ");
 
@@ -59,6 +64,12 @@ int main()
 
     // cheecks for the empty input and restarts the while loop.
    	if(strcmp(cmd_str,"\n")==0) continue;
+
+   	strcpy(history[c_count], cmd_str);
+   	c_count++;
+
+
+
     /* Parse input */
     char *token[MAX_NUM_ARGUMENTS];
 
@@ -103,29 +114,54 @@ int main()
     	fflush(NULL);
     	return 0;
     }
-
-    pid_t child_pid = fork();
-
-    int child_status;
-
-    if(child_pid ==0)
+    else if(strcmp(token[0],"cd")==0)
     {
-    	child_status = execvp(token[0],token);
-    	if(child_status!=0)
+    	chdir(token[1]);
+    }
+    
+    else if(token[0][0]=='!')
     {
-    	printf("%s: Command not found.\n\n",token[0]);
+
+
+
+
     }
-    	exit(0);
+    else if(strcmp(token[0],"history")==0)
+    {
+    	for(int i=0;i<c_count;i ++)
+    	{
+    		printf("%d: %s",i,history[i]);	
+    	}
     }
-    waitpid(child_pid, &child_status,0);
+    else if(strcmp(token[0],"listpids")==0 || strcmp(token[0],"showpids")==0)
+    {
+    	for(int i=0;i<p_count;i ++)
+    	{
+    		printf("%d: %d\n",i,c_pids[i]);	
+    	}
+    }
+    else
+    {
+    	int child_pid = fork();
+    	int child_status;
 
+    	if(child_pid ==0)
+    	{
+    		child_status = execvp(token[0],token);
+    		if(child_status!=0)
+    		{
+    			printf("%s: Command not found.\n\n",token[0]);
+    		}
+    		exit(0);
+    	}
+    	if(child_pid !=0 && child_status ==0)
+    	{
+    		c_pids[p_count] = child_pid; 
+    		p_count++;	
+    	}
+    	waitpid(child_pid, &child_status,0);
 
-
-
-
-
-
-
+    }
 
 
 
