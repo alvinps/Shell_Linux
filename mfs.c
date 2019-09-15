@@ -40,6 +40,12 @@
 
 #define MAX_NUM_ARGUMENTS 5     // Mav shell only supports five arguments
 
+//execute function that executes the user typed command.
+// runs all the commands from the current directory, /usr/local/bin , /usr/bin , /bin
+void execute_func(char**token,int p_count,int c_pids[]);
+
+void history_printer(int c_count, char history[100][MAX_COMMAND_SIZE]);
+
 int main()
 {
 
@@ -48,7 +54,7 @@ int main()
   char history [100][MAX_COMMAND_SIZE];
   int c_count = 0;
   int p_count =0;
-
+  int i;
   while( 1 )
   {
   	
@@ -62,14 +68,29 @@ int main()
     // is no input
     while( !fgets (cmd_str, MAX_COMMAND_SIZE, stdin) );
 
-    // cheecks for the empty input and restarts the while loop.
+    // checks for the empty input and restarts the while loop.
    	if(strcmp(cmd_str,"\n")==0) continue;
 
-   	strcpy(history[c_count], cmd_str);
+   	// Adds the typed input in the history array for future execution.
+   	strcpy(history[c_count], cmd_str); 
+   	//Updates the number of command typed during the session.
    	c_count++;
 
+   	if(cmd_str[0]=='!')
+    {
+    	char history_num[10];
+    
+    	for (int i=1;i<strlen(cmd_str);i++)
+    	{
+    	    history_num[i-1] = cmd_str[i]; 
+    	}
+    	history_num[i-1] = '\0';
 
+    	int choice_run = atoi(history_num);
 
+		strcpy(cmd_str,history[choice_run]);    
+    }
+	
     /* Parse input */
     char *token[MAX_NUM_ARGUMENTS];
 
@@ -112,37 +133,65 @@ int main()
     if(strcmp(token[0],"exit")==0 || strcmp(token[0],"quit")==0)
     {
     	fflush(NULL);
-    	return 0;
+    	exit(0);
     }
     else if(strcmp(token[0],"cd")==0)
     {
     	chdir(token[1]);
     }
     
-    else if(token[0][0]=='!')
-    {
-
-
-
-
-    }
     else if(strcmp(token[0],"history")==0)
     {
-    	for(int i=0;i<c_count;i ++)
-    	{
-    		printf("%d: %s",i,history[i]);	
-    	}
+		history_printer(c_count, history); 
+		// calls history printing function that prints all the past typed command.
+    	
     }
     else if(strcmp(token[0],"listpids")==0 || strcmp(token[0],"showpids")==0)
     {
-    	for(int i=0;i<p_count;i ++)
+    	for(i=0;i<p_count;i ++)
     	{
     		printf("%d: %d\n",i,c_pids[i]);	
     	}
     }
     else
     {
-    	int child_pid = fork();
+    	int semicolon_detect =0;
+    	for(i=0;i<token_count-1;i++)
+    	{
+
+    		if(strcmp(token[i],";")==0)
+    		{
+    			semicolon_detect = 1;
+    		}
+    	}
+    	if(semicolon_detect ==1)
+    	{
+
+
+
+    	}
+    	else
+    	{
+    		execute_func(token,p_count,c_pids);
+    	}	
+  }
+
+}
+
+return 0;
+}
+
+//execute function that executes the user typed command.
+// runs all the commands from the current directory,
+//		/usr/local/bin
+//		/usr/bin
+//		/bin
+
+
+void execute_func(char**token,int p_count,int c_pids[])
+{
+
+	int child_pid = fork();
     	int child_status;
 
     	if(child_pid ==0)
@@ -159,17 +208,27 @@ int main()
     		c_pids[p_count] = child_pid; 
     		p_count++;	
     	}
-    	waitpid(child_pid, &child_status,0);
+
+    	wait(&child_status);
 
     }
 
-
-
-
-
-
-  }
-
-
-  return 0;
+void history_printer(int c_count, char history[100][MAX_COMMAND_SIZE])
+{
+	int i;
+	if(c_count<=15)
+    	{
+    		for(i=0;i<c_count;i ++)
+    		{
+    			printf("%d: %s",i,history[i]);	
+    		}
+    	}
+    	else
+    	{
+    		for(i=c_count-15;i<c_count;i ++)
+    		{
+    			printf("%d: %s",i,history[i]);	
+    		}
+    	}
 }
+
