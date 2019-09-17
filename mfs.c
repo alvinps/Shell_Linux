@@ -2,11 +2,7 @@
 	Name: Alvin Poudel Sharma
 	ID: 1001555230
 
-
-
 */
-
-
 
 
 // The MIT License (MIT)
@@ -55,12 +51,16 @@
 //  runs all the commands from the current directory,
 //  /usr/local/bin , /usr/bin , /bin
 //	also update the process count and store the child pids in the array.
+//	it is a void function where tken array for execution is passes along
+//	with process count and array to store pids
 void execute_func(char**token,int* p_count,int c_pids[]);
 
-//	prints the last 15 command typed by the user for shortcuts(i.e !1  !2 !3 ans so on.)
+//	 prints the command histroy typed by the user.
+//	it is a void function that expects command count and history char array.
 void history_printer(int c_count, char history[100][100]);
 
 //	prints the lists process ids of last 15 child processes executed from this shell.
+//	its a void function that expexts process count and int array of processes.
 void pids_printer(int p_count, int c_pids[]);
 
 //	handles the signals (Ctrl-Z and Ctrl-C )
@@ -71,10 +71,13 @@ static void handle_signal (int sig );
 //	the pid of the suspended child process to be awaken is passed. 
 void revive_process(int child_pid);
 
+
 //	this function deals with tokenizing the command string provided.
 //	after tokenizing it passes the tokens to execute_func for further execution.
 //	It also adds the pid of a child created by the shell. 
 //	this function also tracks down the total child process created.
+// 	it is a void function that takes the command string, command counter,
+//	process counter, char array that stores history and processes array.
 void shell_helper(char* cmd_str,int*c_count,int* p_count,int c_pids[] ,char history[100][100]);
 
 int main()
@@ -202,11 +205,12 @@ int main()
 	return 0;
 }
 
-//execute function that executes the user typed command.
-// runs all the commands from the current directory,
-//		/usr/local/bin
-//		/usr/bin
-//		/bin
+//  execute function that executes the user typed command.
+//  runs all the commands from the current directory,
+//  /usr/local/bin , /usr/bin , /bin
+//	also update the process count and store the child pids in the array.
+//	it is a void function where tken array for execution is passes along
+//	with process count and array to store pids
 void execute_func(char**token,int* p_count,int c_pids[])
 {
 	// forking
@@ -236,6 +240,7 @@ void execute_func(char**token,int* p_count,int c_pids[])
 }
 
 //	 prints the command histroy typed by the user.
+//	it is a void function that expects command count and history char array.
 void history_printer(int c_count, char history[100][100])
 {
 	int i;
@@ -259,6 +264,7 @@ void history_printer(int c_count, char history[100][100])
 }
 
 //	prints the lists process ids of last 15 child processes executed from this shell.
+//	its a void function that expexts process count and int array of processes.
 void pids_printer(int p_count, int c_pids[])
 {
 	int i;
@@ -280,15 +286,17 @@ void pids_printer(int p_count, int c_pids[])
 	}
 }
 
-
+//	resumes the suspended child process by sending the signal.
+//	its a void function that expects child pid as a parameter.
 void revive_process(int child_pid)
 {
-	//	resumes the suspended child process by sending the signal.
+	// sends resume signal to specific child
 	kill(child_pid,SIGCONT);
 }
 
 //	handles the signals (Ctrl-Z and Ctrl-C )
 //	is  just a handler and does nothing.
+//	it is a void finction that expects signal number as parameter.
 static void handle_signal (int sig )
 {
   // Empty to just catch the signal and do nothing.
@@ -299,6 +307,8 @@ static void handle_signal (int sig )
 //	after tokenizing it passes the tokens to execute_func for further execution.
 //	It also adds the pid of a child created by the shell. 
 //	this function also tracks down the total child process created.
+// 	it is a void function that takes the command string, command counter,
+///	process counter, char array that stores history and processes array.
 void shell_helper(char* cmd_str,int*c_count,int* p_count,int c_pids[] ,char history[100][100])
 {
 
