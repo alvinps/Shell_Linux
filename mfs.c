@@ -1,3 +1,14 @@
+/*
+	Name: Alvin Poudel Sharma
+	ID: 1001555230
+
+
+
+*/
+
+
+
+
 // The MIT License (MIT)
 // 
 // Copyright (c) 2016, 2017 Trevor Bakker 
@@ -43,29 +54,41 @@
 //  execute function that executes the user typed command.
 //  runs all the commands from the current directory,
 //  /usr/local/bin , /usr/bin , /bin
+//	also update the process count and store the child pids in the array.
 void execute_func(char**token,int* p_count,int c_pids[]);
 
+//	prints the last 15 command typed by the user for shortcuts(i.e !1  !2 !3 ans so on.)
 void history_printer(int c_count, char history[100][100]);
 
+//	prints the lists process ids of last 15 child processes executed from this shell.
 void pids_printer(int p_count, int c_pids[]);
 
+//	handles the signals (Ctrl-Z and Ctrl-C )
+//	is  just a handler and does nothing.
 static void handle_signal (int sig );
 
+//	revives the last suspended child process by the user.
+//	the pid of the suspended child process to be awaken is passed. 
 void revive_process(int child_pid);
 
+//	this function deals with tokenizing the command string provided.
+//	after tokenizing it passes the tokens to execute_func for further execution.
+//	It also adds the pid of a child created by the shell. 
+//	this function also tracks down the total child process created.
 void shell_helper(char* cmd_str,int*c_count,int* p_count,int c_pids[] ,char history[100][100]);
-
-void fused_code(char* cmd_str,int*c_count,int* p_count,int c_pids[] ,char history[100][100]);
-
 
 int main()
 {
 
 	char * cmd_str = (char*) malloc( MAX_COMMAND_SIZE );
+	// array to store child process ids
 	int c_pids[100];
 	char history [100][100];
+	
+	// counters for processes and history.
 	int c_count = 0;
 	int p_count =0;
+	
 	int i;
 
 	struct sigaction sig_processing;
@@ -79,12 +102,12 @@ int main()
 	sig_processing.sa_handler = &handle_signal;
 
 	if (sigaction(SIGINT , &sig_processing, NULL) < 0) {
-		perror ("sigaction: ");
+		perror ("sigaction: SIGINT");
 		return 1;
 	}
 
 	if (sigaction(SIGTSTP , &sig_processing, NULL) < 0) {
-		perror ("sigaction: ");
+		perror ("sigaction: SIGTSTP");
 		return 1;
 	}
 
@@ -111,42 +134,66 @@ int main()
    	//Updates the number of command typed during the session.
 		c_count++;
 
+		//	checks for '!' so that specific command from the
+		//	history. 
 		if(cmd_str[0]=='!')
 		{
 			char history_num[10];
-			for (int i=1;i<strlen(cmd_str);i++)
+			//	copies the characters after '!' for converting into int.
+			for (i=1;i<strlen(cmd_str);i++)
 			{
 				history_num[i-1] = cmd_str[i]; 
 			}
+
 			history_num[i-2] = '\0';
+			//	just to make the conversion correct, the last character of the string
+			//	is nulled, Note: atoi will give 0 otherwise.
 			int choice_run = atoi(history_num);
-			if(choice_run>c_count)
+			// checks the bound of the typed comment if it is within (1-nth) or not. 
+			if(choice_run>c_count|| choice_run<=0)
 			{
 				printf("Command not in history.\n");
 				continue;
 
 			}
-			strcpy(cmd_str,history[choice_run]);
+			if(c_count>=15)
+			{
+				choice_run = (c_count-16)+choice_run;
+			}
+			// copies the cmd from history for execution.
+			strcpy(cmd_str,history[choice_run-1]);
 		}
 
+		//	this section of code detects the presence of semicolon or not.
 		int semicolon_detect =0;
-
 		for(i=0;i<strlen(cmd_str);i++)
 		{
-
 			if(cmd_str[i]==';')
 			{
 				semicolon_detect = 1;
-
 			}
 		}
+
+		//	on detecting a ";" the cmd string is first tokenized into multiple command str.
+		//  then they are passed accordingly until all the commands are executed.
 		if(semicolon_detect ==1)
 		{
-			fused_code(cmd_str, &c_count, &p_count, c_pids ,history );
+			char * token = strtok(cmd_str,";");
+			while(token!= NULL)
+			{
+				// tokenize the given string and executes the command provided by the user.
+				shell_helper(token, &c_count, &p_count, c_pids ,history );
+
+				token = strtok(NULL,";");
+				if(token ==NULL) break;
+				if(token[0]==' ') token++;
+				//	note: during execution of multiple cmd seperated by ";" the presence of 
+				//	space caused segfault during exec.So, token is moved up to prevent it.
+			}					
 		}
 		else
 		{
-
+			// tokenize the given string and executes the command provided by the user.
 			shell_helper(cmd_str, &c_count, &p_count, c_pids ,history );
 		}
 		fflush(NULL);
@@ -162,63 +209,73 @@ int main()
 //		/bin
 void execute_func(char**token,int* p_count,int c_pids[])
 {
-	
+	// forking
 	int child_pid = fork();
 	int child_status;
 
 	if(child_pid ==0)
 	{
+		//	running exec function by passing the provided token
+		//	if command is not found it would return -1 that is handled later on.
 		child_status = execvp(token[0],token);
+		// handles the command not found condition.
 		if(child_status!=0)
 		{
 			printf("%s: Command not found.\n\n",token[0]);
 		}
 		exit(0);
 	}
-
-
-	c_pids[*p_count] = child_pid; 
+	// updates the process table 
+	c_pids[*p_count] = child_pid;
+	// updates the executed child process count 
 	*p_count= *p_count + 1;	
 
-
+	//	parent process waits for its child to end.
 	waitpid(child_pid , &child_status, 0 );
 	fflush(NULL);
 }
 
+//	 prints the command histroy typed by the user.
 void history_printer(int c_count, char history[100][100])
 {
 	int i;
 	if(c_count<=15)
 	{
+		//	when the number of commands are less than 15
 		for(i=0;i<c_count;i ++)
 		{
-			printf("%d: %s",i,history[i]);	
+			printf("%d: %s",i+1,history[i]);	
 		}
 	}
 	else
 	{
+		//	when the number of commands are more than 15
+		//	 accomodation made to just print last 15 recent commands
 		for(i=c_count-15;i<c_count;i ++)
 		{
-			printf("%d: %s",i,history[i]);	
+			printf("%d: %s",i-(c_count-15)+1,history[i]);	
 		}
 	}
 }
 
+//	prints the lists process ids of last 15 child processes executed from this shell.
 void pids_printer(int p_count, int c_pids[])
 {
 	int i;
 	if(p_count<=15)
 	{
+		//	when the number of processes are less than 15
 		for(i=0;i<p_count;i ++)
 		{
-			printf("%d: %d\n",i,c_pids[i]);	
+			printf("%d: %d\n",i+1,c_pids[i]);	
 		}
 	}
 	else
-	{
+	{	//	when the number of processes are more than 15
+		//	 accomodation made to just print last 15 recent processes
 		for(i=p_count-15;i<p_count;i ++)
 		{
-			printf("%d: %d\n",i,c_pids[i]);	
+			printf("%d: %d\n",i-(p_count-15)+1,c_pids[i]);	
 		}
 	}
 }
@@ -226,19 +283,26 @@ void pids_printer(int p_count, int c_pids[])
 
 void revive_process(int child_pid)
 {
-
+	//	resumes the suspended child process by sending the signal.
 	kill(child_pid,SIGCONT);
-
 }
 
+//	handles the signals (Ctrl-Z and Ctrl-C )
+//	is  just a handler and does nothing.
 static void handle_signal (int sig )
 {
   // Empty to just catch the signal and do nothing.
 }
 
+
+//	this function deals with tokenizing the command string provided.
+//	after tokenizing it passes the tokens to execute_func for further execution.
+//	It also adds the pid of a child created by the shell. 
+//	this function also tracks down the total child process created.
 void shell_helper(char* cmd_str,int*c_count,int* p_count,int c_pids[] ,char history[100][100])
 {
-	    /* Parse input */
+
+	  /* Parse input */
 	char *token[MAX_NUM_ARGUMENTS];
 
 	int   token_count = 0;                                 
@@ -266,109 +330,41 @@ void shell_helper(char* cmd_str,int*c_count,int* p_count,int c_pids[] ,char hist
 		token_count++;
 	}
 
-    // int token_index  = 0;
-    // for( token_index = 0; token_index < token_count; token_index ++ ) 
-    // {
-    //   printf("token[%d] = %s\n", token_index, token[token_index] );  
-    // }
-
 	free( working_root );
 
+	//exits the shell if user types exit or quit.
 	if(strcmp(token[0],"exit")==0 || strcmp(token[0],"quit")==0)
 	{
 		fflush(NULL);
 		exit(0);
 	}
+
+	// deals with all sorts of cd command 
 	else if(strcmp(token[0],"cd")==0)
 	{
 		chdir(token[1]);
 	}
+	//	resumes the last suspended child process.
+	//	note: if a different command is executed after suspending the process,
+	//	the suspended can't be awaken later.
 	else if(strcmp(token[0],"bg")==0)
 	{
 		revive_process(c_pids[*p_count-1]);
 	}
+	// prints the history of cmd typed
 	else if(strcmp(token[0],"history")==0)
 	{
 		history_printer(*c_count, history); 
 		// calls history printing function that prints all the past typed command.
-
 	}
+	//	prints the list of processes executed.
 	else if(strcmp(token[0],"listpids")==0 || strcmp(token[0],"showpids")==0)
 	{
 		pids_printer(*p_count, c_pids);
-
 	}
 	else
 	{
+		//	executes the token provided and updates the pid list and its count.
 		execute_func(token,p_count,c_pids);
-
 	}
 }
-
-void fused_code(char* cmd_str,int*c_count,int* p_count,int c_pids[] ,char history[100][100])
-{
-	    /* Parse input */
-	char *token[MAX_NUM_ARGUMENTS];
-
-	int   token_count = 0;                                 
-
-    // Pointer to point to the token
-    // parsed by strsep
-	char *arg_ptr;                                         
-
-	char *working_str  = strdup( cmd_str );                
-
-    // we are going to move the working_str pointer so
-    // keep track of its original value so we can deallocate
-    // the correct amount at the end
-	char *working_root = working_str;
-
-    // Tokenize the input stringswith whitespace used as the delimiter
-	while ( ( (arg_ptr = strsep(&working_str, WHITESPACE ) ) != NULL) && 
-		(token_count<MAX_NUM_ARGUMENTS))
-	{
-		token[token_count] = strndup( arg_ptr, MAX_COMMAND_SIZE );
-		if( strlen( token[token_count] ) == 0 )
-		{
-			token[token_count] = NULL;
-		}
-		token_count++;
-	}
-
-    int token_index  = 0;
-    for( token_index = 0; token_index < token_count; token_index ++ ) 
-    {
-      printf("token[%d] = %s\n", token_index, token[token_index] );  
-    }
-
-	free( working_root );
-
-	int start =0;
-	int end = 0;
-	int traveler = 0;
-	while(traveler = token_count)
-	{
-
-		if (strcmp(token[traveler],";")==0)
-		{
-			end= traveler -1;
-			char ex_code[100];
-			strcpy(ex_code,token[start]);
-			while(start<end)
-			{
-				strcat(ex_code," ");
-				strcat(ex_code,token[start+1]);
-				start++;	
-			}
-			shell_helper(ex_code, c_count, p_count, c_pids ,history );
-			
-			if(token[traveler]!=NULL)
-			{
-				start = traveler +1 ;
-			}
-		}
-	traveler++;
-	}
-
-}
-
